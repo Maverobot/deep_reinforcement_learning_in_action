@@ -6,6 +6,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum(axis=0)  # only difference
+
+
 class MultiArmBandit:
     def __init__(self, n):
         self.probs = [random.random() for _ in range(n)]
@@ -20,18 +26,41 @@ class MultiArmBandit:
 
 
 class Agent:
-    def __init__(self, actions):
+    def __init__(
+            self,
+            actions,
+    ):
         self.actions = actions
         self.reward_history = [[] for _ in range(len(self.actions))]
 
-    def step(self, env, greedy_espilon=0.9):
-        # Choose an action by accident
-        if random.random() < greedy_espilon:
+    def step(self, env, strategy='greedy'):
+        if strategy == 'greedy':
+            action = self.greedy_selection(0.9)
+        elif strategy == 'softmax':
+            action = self.softmax_selection()
+        else:
+            raise Exception("strategy {} is not allowed.".format(stratety))
+
+        print("action: ", action)
+
+        reward = env.step(action)
+        self.reward_history[action].append(reward)
+
+    def greedy_selection(self, espilon=0.9):
+        if random.random() < espilon:
             action = np.argmax(self.action_reward_average())
         else:
             action = self.actions[random.randint(0, len(self.actions) - 1)]
-        reward = env.step(action)
-        self.reward_history[action].append(reward)
+        return action
+
+    def softmax_selection(self):
+        probs = softmax(self.action_reward_average())
+        probs_cs = np.cumsum(probs)
+        r = random.random()
+        for action in range(len(probs_cs)):
+            if r <= probs_cs[action]:
+                return action
+        raise Exception("This shall not happen.")
 
     def action_reward_average(self):
         return [sum(h) / len(h) if h else 0 for h in self.reward_history]
@@ -47,15 +76,16 @@ if __name__ == '__main__':
     agent = Agent(env.actions())
     plt.figure()
 
-    generations = 250
+    generations = 500
 
     for i in range(generations):
-        agent.step(env, 0.8)
+        agent.step(env, 'softmax')
         plt.scatter(i, agent.reward_average())
         plt.pause(0.001)
 
     for i in range(generations):
-        agent.step(env, 1)
+        agent.step(env, 'greedy')
         plt.scatter(i + generations, agent.reward_average())
         plt.pause(0.001)
+
     plt.show()
