@@ -41,13 +41,20 @@ def get_model() -> Sequential:
     return model
 
 
+model_path = "dql_model.pt"
+
+
 def main():
     plt.figure()
 
     plt.xlabel("step index")
     plt.ylabel('cost (log10)')
 
-    model = get_model()
+    try:
+        model = torch.load(model_path)
+    except FileNotFoundError:
+        model = get_model()
+
     loss_fn = MSELoss(size_average=True)
     optimizer = Adam(model.parameters(), lr=0.001)
 
@@ -56,7 +63,7 @@ def main():
 
     action_set = {0: 'u', 1: 'd', 2: 'l', 3: 'r'}
 
-    epochs = 500
+    epochs = 10
     step_idx = 0
     for epoch_idx in range(epochs):
         game = Gridworld(size=4, mode='static')
@@ -121,6 +128,7 @@ def main():
                 game_over = True
         if epsilon > 0.1:
             epsilon -= 1.0 / epochs
+    torch.save(model, model_path)
     plt.show(block=True)
 
 
