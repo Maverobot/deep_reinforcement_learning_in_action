@@ -30,6 +30,9 @@ Adam = torch.optim.Adam
 #torch.manual_seed(0)
 #random.seed(0)
 
+action_set = {0: 'u', 1: 'd', 2: 'l', 3: 'r'}
+model_path = "dql_model.pt"
+
 
 def get_model() -> Sequential:
     l1 = 64  # 3 x 16 for 4x4 grids
@@ -41,32 +44,46 @@ def get_model() -> Sequential:
     return model
 
 
-model_path = "dql_model.pt"
+def test_model(model, mode='static'):
+    i = 0
+    test_game = Gridworld(mode=mode)
+    state_ = test_game.board.render_np().reshape(
+        1, 64) + np.random.rand(1, 64) / 10.0
+    state = Variable(torch.from_numpy(state_).float())
+    print("Initial State:")
+    print(test_game.display())
+    gameover = False
+    while not gameover:
+        qval = model(state)
+        qval_ = qval.data.numpy()
+        action_ = np.argmax(qval_)  #take action with highest Q-value
+        action = action_set[action_]
+        print('Move #: %s; Taking action: %s' % (i, action))
+        test_game.makeMove(action)
+        state_ = test_game.board.render_np().reshape(1, 64)
+        state = Variable(torch.from_numpy(state_).float())
+        print(test_game.display())
+        reward = test_game.reward()
+        print(reward)
+        if reward != -1:
+            gameover = True
+            print("Reward: %s" % (reward, ))
+        i += 1
+        if (i > 15):
+            print("Game lost; too many moves.")
+            break
 
 
-def main():
-    plt.figure()
-
-    plt.xlabel("step index")
-    plt.ylabel('cost (log10)')
-
-    try:
-        model = torch.load(model_path)
-    except FileNotFoundError:
-        model = get_model()
-
+def train_model(model, epochs=10, mode='static'):
     loss_fn = MSELoss(size_average=True)
     optimizer = Adam(model.parameters(), lr=0.001)
 
     gamma = 0.9  # decay factor for future reward
     epsilon = 1.0  # probability to take random action
 
-    action_set = {0: 'u', 1: 'd', 2: 'l', 3: 'r'}
-
-    epochs = 10
     step_idx = 0
     for epoch_idx in range(epochs):
-        game = Gridworld(size=4, mode='static')
+        game = Gridworld(size=4, mode=mode)
         s_ = game.board.render_np().reshape(1, 64)
         state = Variable(torch.from_numpy(s_).float())
         #print(game.display())
@@ -128,10 +145,24 @@ def main():
                 game_over = True
         if epsilon > 0.1:
             epsilon -= 1.0 / epochs
-    torch.save(model, model_path)
-    plt.show(block=True)
+    return model
+
+
+def main():
+    plt.figure()
+
+    plt.xlabel("step index")
+    plt.ylabel('cost (log10)')
+
+    try:
+        model = torch.load(model_path)
+        test_model(model, mode='player')
+    except FileNotFoundError:
+        model = get_model()
+        model = train_model(model, epochs=100, mode='player')
+        torch.save(model, model_path)
+        plt.show(block=True)
 
 
 if __name__ == "__main__":
     main()
-    pass
