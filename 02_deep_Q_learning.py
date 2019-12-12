@@ -11,6 +11,7 @@
     9. Train the model on this 1 sample. Repeat process 2-9
 """
 
+import copy
 import random
 
 import matplotlib.pyplot as plt
@@ -70,7 +71,7 @@ def test_model(model, mode='static'):
             print("Reward: %s" % (reward, ))
         i += 1
         if (i > 15):
-            print("Game lost; too many moves.")
+            print("Game lost; too many move_count.")
             break
 
 
@@ -80,16 +81,23 @@ def train_model(model, epochs=10, mode='static'):
 
     gamma = 0.9  # decay factor for future reward
     epsilon = 1.0  # probability to take random action
+    max_moves = 50  # maximum move_count that one epoch is allowed to have
+    replay = []
+    replay_buffer = 500
+    batch_size = 100
 
     step_idx = 0
     for epoch_idx in range(epochs):
         game = Gridworld(size=4, mode=mode)
         s_ = game.board.render_np().reshape(1, 64)
         state = Variable(torch.from_numpy(s_).float())
-        #print(game.display())
 
+        move_count = 0
         game_over = False
+        total_reward = 0
         while not game_over:
+            move_count += 1
+
             q_val = model(state)
 
             # Random action or best action
@@ -98,53 +106,70 @@ def train_model(model, epochs=10, mode='static'):
             else:
                 action_ = np.argmax(q_val.data.numpy())
             action = action_set[action_]
-            #print(action)
 
             # Make the action
             game.makeMove(action)
             s_ = game.board.render_np().reshape(1, 64)
-            #print(game.display())
 
             # Get the new state and reward
             new_state = Variable(torch.from_numpy(s_).float())
             reward = game.reward()
 
-            # Get the maximum Q value of the new new_state
-            new_q_val = model(new_state)
-            new_q_val_max = np.max(new_q_val.data.numpy())
+            total_reward += reward
 
-            # Set target q value
-            y_ = np.copy(q_val.data.numpy())
-            if reward == -1:
-                update = reward + (gamma * new_q_val_max)
+            if len(replay) < replay_buffer:
+                replay.append((state, action_, reward, new_state))
             else:
-                update = reward
-            y_[0][action_] = update
-            y = Variable(torch.from_numpy(y_).float())
+                replay.pop(0)
+                replay.append((state, action_, reward, new_state))
 
-            # Calculate loss
-            loss = loss_fn(q_val, y)
+                minibatch = random.sample(replay, batch_size)
+                X_train = Variable(
+                    torch.empty(batch_size, 4, dtype=torch.float))
+                y_train = Variable(
+                    torch.empty(batch_size, 4, dtype=torch.float))
 
-            # Visualize loss trend
-            plt.scatter(step_idx, np.log10(loss.item()))
-            plt.pause(0.01)
-            step_idx += 1
-            #print("Epoch {}: {}".format(epoch_idx, loss))
+                memory_idx = 0
+                for memory in minibatch:
+                    (old_state_m, action_m, reward_m, new_state_m) = memory
+                    old_q_val = model(old_state_m)
+                    new_q_val = model(new_state_m)
+                    new_q_val_max = np.max(new_q_val.data.numpy())
+                    # Don't forget deepcopy
+                    y = copy.deepcopy(old_q_val.data.numpy())
+                    if reward == -1:
+                        update = reward + (gamma * new_q_val_max)
+                    else:
+                        update = reward
+                    y[0][action_m] = update
+                    X_train[memory_idx] = old_q_val
+                    y_train[memory_idx] = Variable(torch.from_numpy(y).float())
+                    memory_idx += 1
 
-            # Clear gradients of all optimized tensors
-            optimizer.zero_grad()
+                # Calculate loss
+                loss = loss_fn(X_train, y_train)
 
-            # Compute gradient to minimize loss
-            loss.backward()
+                # Visualize loss trend
+                plt.scatter(step_idx, np.log10(loss.item()))
+                plt.pause(0.01)
+                step_idx += 1
+                # print("Epoch {}: {}".format(epoch_idx, loss))
 
-            # Perform a single optimization step (parameter update)
-            optimizer.step()
+                # Clear gradients of all optimized tensors
+                optimizer.zero_grad()
 
-            state = new_state
-            if reward != -1:
+                # Compute gradient to minimize loss
+                loss.backward()
+
+                # Perform a single optimization step (parameter update)
+                optimizer.step()
+
+                state = new_state
+            if reward != -1 or move_count > max_moves:
                 game_over = True
         if epsilon > 0.1:
             epsilon -= 1.0 / epochs
+        print("Epoch {} total reward: {}".format(epoch_idx, total_reward))
     return model
 
 
@@ -156,10 +181,10 @@ def main():
 
     try:
         model = torch.load(model_path)
-        test_model(model, mode='player')
+        test_model(model, mode='random')
     except FileNotFoundError:
         model = get_model()
-        model = train_model(model, epochs=100, mode='player')
+        model = train_model(model, epochs=3000, mode='random')
         torch.save(model, model_path)
         plt.show(block=True)
 
