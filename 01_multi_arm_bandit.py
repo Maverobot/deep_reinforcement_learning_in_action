@@ -38,7 +38,7 @@ class Agent:
         elif strategy == 'softmax':
             action = self.softmax_selection()
         else:
-            raise Exception("strategy {} is not allowed.".format(stratety))
+            raise Exception("strategy {} is not allowed.".format(strategy))
 
         print("action: ", action)
 
