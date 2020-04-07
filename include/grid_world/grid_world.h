@@ -2,6 +2,7 @@
 
 #include <grid_board.h>
 
+namespace drl_in_action::grid_world {
 class GridWorld {
  public:
   enum class Action { up, down, left, right };
@@ -41,6 +42,10 @@ class GridWorld {
         break;
     }
   }
+
+  std::vector<std::vector<int>> state() const { return board_.state(); }
+
+  bool over() const { return status_ != Status::ongoing; }
 
  private:
   GridBoard board_;
@@ -87,3 +92,4 @@ class GridWorld {
     return Reward();
   }
 };
+}  // namespace drl_in_action::grid_world

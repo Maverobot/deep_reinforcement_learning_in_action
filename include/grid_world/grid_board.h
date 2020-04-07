@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+namespace drl_in_action::grid_world {
 class GridBoard {
  public:
   GridBoard(size_t size = 4) : size_(size){};
@@ -46,7 +47,7 @@ class GridBoard {
     }
   }
 
-  std::vector<std::vector<int>> state() {
+  std::vector<std::vector<int>> state() const {
     std::vector<std::vector<int>> state;
     for (const auto& piece : pieces_) {
       std::vector<int> state_p(size_ * size_, 0);
@@ -60,7 +61,7 @@ class GridBoard {
     fort::char_table table;
     for (size_t row_idx = 0; row_idx < size_; row_idx++) {
       for (size_t col_idx = 0; col_idx < size_; col_idx++) {
-        const auto& piece = where(pieces_, [row_idx, col_idx](const auto& piece) {
+        const auto& piece = utils::where(pieces_, [row_idx, col_idx](const auto& piece) {
           return piece.row_idx == row_idx && piece.col_idx == col_idx;
         });
 
@@ -102,3 +103,4 @@ class GridBoard {
     return {};
   }
 };
+}  // namespace drl_in_action::grid_world

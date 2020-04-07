@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+namespace drl_in_action::utils {
 namespace detail {
 template <typename type_t, class orig_t>
 struct unwrap_impl {
@@ -46,3 +47,4 @@ auto where(const container_t& container, predicate_t predicate) {
   std::copy_if(b, e, std::back_inserter(result), predicate);
   return result;
 }
+}  // namespace drl_in_action::utils

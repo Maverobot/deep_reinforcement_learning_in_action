@@ -1,6 +1,8 @@
-#include <grid_world.h>
+#include <grid_world/grid_world.h>
 
 #include <iostream>
+
+using drl_in_action::grid_world::GridWorld;
 
 int main(int argc, char* argv[]) {
   GridWorld world;
