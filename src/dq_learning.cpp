@@ -12,7 +12,7 @@ std::ostream& operator<<(std::ostream& o, const std::vector<T>& arr) {
   return o;
 }
 
-auto model(torch::Device device) {
+torch::nn::Sequential create_model(torch::Device device) {
   const int kL1 = 64;
   const int kL2 = 150;
   const int kL3 = 100;
@@ -43,9 +43,19 @@ torch::Tensor flat_tensor(std::vector<std::vector<value_type>> input,
 using drl_in_action::grid_world::GridWorld;
 
 int main(int argc, char* argv[]) {
+  auto model = create_model(torch::kCUDA);
   auto game = drl_in_action::grid_world::GridWorld();
-  auto state = flat_tensor(game.state());
-  std::cout << state << "\n";
   game.display();
+
+  bool game_over = false;
+  int step_cout = 0;
+  while (!game_over && step_cout++ < 50) {
+    auto state = flat_tensor(game.state());
+    auto q_values = model->forward(state);
+    auto action = q_values.argmax().item<int>();
+    game.step(GridWorld::Action(action), true);
+    std::cout << "step: " << step_cout << "\n";
+    game.display();
+  }
   return 0;
 }
