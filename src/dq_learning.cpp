@@ -2,36 +2,9 @@
 
 #include <grid_world.h>
 
+#include <iostream>
 #include <iterator>
-
-/*
-  test_game = Gridworld(mode=mode)
-  state_ = test_game.board.render_np().reshape(
-                                               1, 64) + np.random.rand(1, 64) / 10.0
-  state = Variable(torch.from_numpy(state_).float())
-  print("Initial State:")
-  print(test_game.display())
-  gameover = False
-  while not gameover:
-  qval = model(state)
-    qval_ = qval.data.numpy()
-    action_ = np.argmax(qval_)  #take action with highest Q-value
-    action = action_set[action_]
-    print('Move #: %s; Taking action: %s' % (i, action))
-    test_game.makeMove(action)
-    state_ = test_game.board.render_np().reshape(1, 64)
-    state = Variable(torch.from_numpy(state_).float())
-    print(test_game.display())
-    reward = test_game.reward()
-    print(reward)
-    if reward != -1:
-    gameover = True
-      print("Reward: %s" % (reward, ))
-      i += 1
-      if (i > 15):
-        print("Game lost; too many move_count.")
-          break
-*/
+#include <vector>
 
 template <class T>
 std::ostream& operator<<(std::ostream& o, const std::vector<T>& arr) {
@@ -39,7 +12,6 @@ std::ostream& operator<<(std::ostream& o, const std::vector<T>& arr) {
   return o;
 }
 
-using drl_in_action::grid_world::GridWorld;
 auto model(torch::Device device) {
   const int kL1 = 64;
   const int kL2 = 150;
@@ -55,12 +27,24 @@ auto model(torch::Device device) {
   return model;
 }
 
+template <typename value_type>
+auto flat_tensor(std::vector<std::vector<value_type>> input) {
+  std::cout << input << "\n";
+  std::vector<torch::Tensor> output_vec;
+  std::transform(input.begin(), input.end(), std::back_inserter(output_vec), [](auto& arr) {
+    return torch::from_blob(arr.data(), {1, static_cast<long>(arr.size())},
+                            torch::TensorOptions().dtype<value_type>())
+        .clone();
+  });
+  return torch::cat(output_vec, 1);
+}
+
+using drl_in_action::grid_world::GridWorld;
+
 int main(int argc, char* argv[]) {
-  auto game = GridWorld();
+  auto game = drl_in_action::grid_world::GridWorld();
+  auto state = flat_tensor(game.state());
+  std::cout << state << "\n";
   game.display();
-  auto state = game.state();
-  for (const auto& sub_state : state) {
-    std::cout << sub_state << "\n";
-  }
   return 0;
 }
