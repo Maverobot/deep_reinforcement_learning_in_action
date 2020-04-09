@@ -40,6 +40,20 @@ std::ostream& operator<<(std::ostream& o, const std::vector<T>& arr) {
 }
 
 using drl_in_action::grid_world::GridWorld;
+auto model(torch::Device device) {
+  const int kL1 = 64;
+  const int kL2 = 150;
+  const int kL3 = 100;
+  const int kL4 = 4;
+  torch::nn::Sequential model(
+      torch::nn::Linear(torch::nn::LinearOptions(kL1, kL2).bias(true)),
+      torch::nn::Functional(torch::elu, /*alpha=*/1, /*scale=*/0, /*input_scale=*/1),
+      torch::nn::Linear(torch::nn::LinearOptions(kL2, kL3).bias(true)),
+      torch::nn::Functional(torch::elu, /*alpha=*/1, /*scale=*/0, /*input_scale=*/1),
+      torch::nn::Linear(torch::nn::LinearOptions(kL3, kL4).bias(true)));
+  model->to(device);
+  return model;
+}
 
 int main(int argc, char* argv[]) {
   auto game = GridWorld();
