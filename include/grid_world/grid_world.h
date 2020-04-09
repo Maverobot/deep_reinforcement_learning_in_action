@@ -43,7 +43,7 @@ class GridWorld {
     }
   }
 
-  std::vector<std::vector<int>> state() const { return board_.state(); }
+  auto state() const { return board_.state(); }
 
   bool over() const { return status_ != Status::ongoing; }
 
