@@ -28,13 +28,14 @@ auto model(torch::Device device) {
 }
 
 template <typename value_type>
-auto flat_tensor(std::vector<std::vector<value_type>> input) {
-  std::cout << input << "\n";
+torch::Tensor flat_tensor(std::vector<std::vector<value_type>> input,
+                          torch::Device device = torch::kCUDA) {
   std::vector<torch::Tensor> output_vec;
-  std::transform(input.begin(), input.end(), std::back_inserter(output_vec), [](auto& arr) {
+  std::transform(input.begin(), input.end(), std::back_inserter(output_vec), [&device](auto& arr) {
     return torch::from_blob(arr.data(), {1, static_cast<long>(arr.size())},
                             torch::TensorOptions().dtype<value_type>())
-        .clone();
+        .clone()
+        .to(device);
   });
   return torch::cat(output_vec, 1);
 }
