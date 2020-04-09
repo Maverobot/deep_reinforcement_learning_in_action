@@ -16,15 +16,18 @@ class GridWorld {
     board_.addPiece("Goal", '+', 3, 3);
   };
 
-  auto step(Action action) {
+  auto step(Action action, bool verbose = false) {
     if (status_ != Status::ongoing) {
       throw std::runtime_error("cannot step a finished game.");
+    }
+    if (verbose) {
+      printAction(action);
     }
     auto [row_idx_delta, col_idx_delta] = mapAction(action);
     if (isValid(row_idx_delta, col_idx_delta)) {
       board_.movePiece("Player", row_idx_delta, col_idx_delta);
     } else {
-      std::cout << "invalid move\n";
+      std::cout << "Invalid move\n";
     }
     return std::pair(evaluate(), board_.state());
   }
@@ -52,6 +55,23 @@ class GridWorld {
 
   enum class Status { ongoing, loss, win };
   Status status_{Status::ongoing};
+
+  void printAction(Action action) const {
+    switch (action) {
+      case Action::up:
+        std::cout << "Move up\n";
+        break;
+      case Action::down:
+        std::cout << "Move down\n";
+        break;
+      case Action::left:
+        std::cout << "Move left\n";
+        break;
+      case Action::right:
+        std::cout << "Move right\n";
+        break;
+    }
+  }
 
   bool isValid(int row_idx_delta, int col_idx_delta) {
     auto new_player_pos = std::pair<int, int>(board_.getPiecePos("Player").first + row_idx_delta,
