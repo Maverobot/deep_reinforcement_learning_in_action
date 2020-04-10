@@ -26,7 +26,7 @@ class GridWorld {
     auto [row_idx_delta, col_idx_delta] = mapAction(action);
     if (isValid(row_idx_delta, col_idx_delta)) {
       board_.movePiece("Player", row_idx_delta, col_idx_delta);
-    } else {
+    } else if (verbose) {
       std::cout << "Invalid move\n";
     }
     return std::pair(evaluate(), board_.state());
