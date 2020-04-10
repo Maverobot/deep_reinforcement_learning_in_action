@@ -49,6 +49,7 @@ class GridWorld {
   auto state() const { return board_.state(); }
 
   bool over() const { return status_ != Status::ongoing; }
+  bool win() const { return status_ == Status::win; }
 
  private:
   GridBoard board_;
