@@ -6,9 +6,9 @@ namespace drl_in_action::grid_world {
 class GridWorld {
  public:
   enum class Action { up, down, left, right };
-  using Reward = int;
+  using Reward = float;
 
-  GridWorld(size_t size = 4) : board_(size) {
+  GridWorld(uint32_t size = 4) : board_(size) {
     // Initial board state
     board_.addPiece("Player", 'P', 0, 0);
     board_.addPiece("Wall", 'W', 1, 2);
@@ -73,15 +73,16 @@ class GridWorld {
     }
   }
 
-  bool isValid(int row_idx_delta, int col_idx_delta) {
-    auto new_player_pos = std::pair<int, int>(board_.getPiecePos("Player").first + row_idx_delta,
-                                              board_.getPiecePos("Player").second + col_idx_delta);
+  bool isValid(uint32_t row_idx_delta, uint32_t col_idx_delta) {
+    auto new_player_pos =
+        std::pair<uint32_t, uint32_t>(board_.getPiecePos("Player").first + row_idx_delta,
+                                      board_.getPiecePos("Player").second + col_idx_delta);
     return new_player_pos != board_.getPiecePos("Wall") && board_.isOnBoard(new_player_pos);
   }
 
-  std::pair<int, int> mapAction(Action action) {
-    int row_idx_delta = 0;
-    int col_idx_delta = 0;
+  std::pair<uint32_t, uint32_t> mapAction(Action action) {
+    uint32_t row_idx_delta = 0;
+    uint32_t col_idx_delta = 0;
     switch (action) {
       case Action::up:
         row_idx_delta = -1;
