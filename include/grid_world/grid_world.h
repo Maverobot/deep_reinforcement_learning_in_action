@@ -10,10 +10,10 @@ class GridWorld {
 
   GridWorld(uint32_t size = 4) : board_(size) {
     // Initial board state
-    board_.addPiece("Player", 'P', 0, 0);
-    board_.addPiece("Wall", 'W', 1, 2);
-    board_.addPiece("Pit", '-', 2, 2);
-    board_.addPiece("Goal", '+', 3, 3);
+    board_.addPiece("Player", 'P', 0, 3);
+    board_.addPiece("Goal", '+', 0, 0);
+    board_.addPiece("Wall", 'W', 1, 1);
+    board_.addPiece("Pit", '-', 0, 1);
   };
 
   auto step(Action action, bool verbose = false) {
