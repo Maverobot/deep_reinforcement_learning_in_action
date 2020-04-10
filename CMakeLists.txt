@@ -11,6 +11,22 @@ add_library(utils INTERFACE)
 target_include_directories(utils INTERFACE include/utils)
 
 ####################################
+##             impui              ##
+####################################
+include(FetchContent)
+FetchContent_Declare(
+  impui
+  GIT_REPOSITORY https://github.com/Maverobot/impui.git
+  GIT_TAG v0.1)
+FetchContent_GetProperties(impui)
+if(NOT impui_POPULATED)
+  FetchContent_Populate(impui)
+  add_subdirectory(${impui_SOURCE_DIR} ${impui_BINARY_DIR})
+  list(APPEND CMAKE_PREFIX_PATH ${impui_BINARY_DIR})
+  find_package(ImPui 0.1 REQUIRED)
+endif()
+
+####################################
 ##             grid_world         ##
 ####################################
 include(FetchContent)
@@ -62,4 +78,4 @@ target_include_directories(grid_world_example PRIVATE include)
 target_link_libraries(grid_world_example grid_world)
 
 add_executable(dq_learning src/dq_learning.cpp)
-target_link_libraries(dq_learning ${TORCH_LIBRARIES} grid_world)
+target_link_libraries(dq_learning ${TORCH_LIBRARIES} grid_world ImPui::impui)
