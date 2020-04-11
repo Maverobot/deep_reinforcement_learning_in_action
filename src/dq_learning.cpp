@@ -23,12 +23,11 @@ torch::nn::Sequential create_model(torch::Device device) {
   const int kL2 = 150;
   const int kL3 = 100;
   const int kL4 = 4;
-  torch::nn::Sequential model(
-      torch::nn::Linear(torch::nn::LinearOptions(kL1, kL2).bias(true)),
-      torch::nn::Functional(torch::elu, /*alpha=*/1, /*scale=*/0, /*input_scale=*/1),
-      torch::nn::Linear(torch::nn::LinearOptions(kL2, kL3).bias(true)),
-      torch::nn::Functional(torch::elu, /*alpha=*/1, /*scale=*/0, /*input_scale=*/1),
-      torch::nn::Linear(torch::nn::LinearOptions(kL3, kL4).bias(true)));
+  torch::nn::Sequential model(torch::nn::Linear(torch::nn::LinearOptions(kL1, kL2).bias(true)),
+                              torch::nn::ELU(torch::nn::ELUOptions().alpha(1).inplace(false)),
+                              torch::nn::Linear(torch::nn::LinearOptions(kL2, kL3).bias(true)),
+                              torch::nn::ELU(torch::nn::ELUOptions().alpha(1).inplace(false)),
+                              torch::nn::Linear(torch::nn::LinearOptions(kL3, kL4).bias(true)));
   model->to(device);
   return model;
 }
