@@ -1,12 +1,15 @@
-#include <torch/torch.h>
-
 #include <grid_world.h>
+#include <spdlog/spdlog.h>
 #include <magic_enum.hpp>
 
+#include <torch/torch.h>
+
+#include <algorithm>
 #include <cstdio>
 #include <iostream>
 #include <iterator>
 #include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -53,35 +56,45 @@ const std::string kModelFile = "dql_model.pt";
 
 void test_model(torch::nn::Sequential& model) {
   auto game = drl_in_action::grid_world::GridWorld();
-  game.display();
   int step_count = 0;
   auto state = flat_tensor(game.state());
   while (step_count++ < kMaxSteps && !game.over()) {
-    // Get Q values for the current state
+    game.display();
+    std::cout << "Press any key to move with trained model...\n";
+    std::cin.ignore();
+    system("clear");
+
     auto q_values = model->forward(state);
     int action = q_values.argmax().item<int>();
     auto [reward, new_state_raw] = game.step(GridWorld::Action(action), true);
     state = flat_tensor(new_state_raw);
-    game.display();
   }
-  printf("step used: %d, status: %s\n", step_count, game.win() ? "win" : "loss");
+  spdlog::info("step used: {}, status: {}", step_count, game.win() ? "win" : "loss");
+}
+
+std::string toString(const torch::Tensor& tensor) {
+  std::ostringstream oss;
+  oss << tensor;
+  // TODO: optionally remove last line of type information
+  return oss.str();
 }
 
 int main(int argc, char* argv[]) {
+  spdlog::set_level(spdlog::level::info);
+
   auto model = create_model(torch::kCUDA);
   auto optimizer = torch::optim::Adam(model->parameters(), kLearningRate);
 
   bool model_loaded = true;
   try {
     torch::load(model, kModelFile);
-    std::cout << "model loaded\n";
+    spdlog::info("The model has been loaded from {}", kModelFile);
   } catch (...) {
     model_loaded = false;
-    std::cout << "There is no model to load\n";
+    spdlog::info("The model could not be loaded from {}", kModelFile);
   }
 
   if (model_loaded) {
-    std::cout << model << "\n";
     test_model(model);
     return 0;
   }
@@ -142,9 +155,8 @@ int main(int argc, char* argv[]) {
     if (epsilon > 0.1f) {
       epsilon -= 1.0f / kEpochs;
     }
-
-    printf("Epoch %lu steps: %d, total reward: %d, status: %s\n", epoch_idx, step_count,
-           total_reward, game.win() ? "win" : "loss");
+    spdlog::info("Epoch {:3d} steps: {:3d}, total reward: {:4d}, status: {}", epoch_idx, step_count,
+                 total_reward, game.win() ? "win" : "loss");
   }
 
   torch::save(model, kModelFile);

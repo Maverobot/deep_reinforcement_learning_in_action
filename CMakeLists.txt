@@ -11,9 +11,25 @@ add_library(utils INTERFACE)
 target_include_directories(utils INTERFACE include/utils)
 
 ####################################
-##             grid_world         ##
+##             spdlog             ##
 ####################################
 include(FetchContent)
+find_package(spdlog QUIET CONFIG)
+if(NOT spdlog_FOUND)
+  FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG v1.5.0)
+  FetchContent_GetProperties(spdlog)
+  if(NOT spdlog_POPULATED)
+    FetchContent_Populate(spdlog)
+    add_subdirectory(${spdlog_SOURCE_DIR})
+  endif()
+endif()
+
+####################################
+##             grid_world         ##
+####################################
 FetchContent_Declare(
   libfort
   GIT_REPOSITORY https://github.com/seleznevae/libfort.git
@@ -22,7 +38,6 @@ FetchContent_GetProperties(libfort)
 if(NOT libfort_POPULATED)
   FetchContent_Populate(libfort)
 endif()
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${libfort_SOURCE_DIR}/contrib)
 add_library(fort ${libfort_SOURCE_DIR}/lib/fort.c)
 target_include_directories(fort PUBLIC ${libfort_SOURCE_DIR}/lib)
 
@@ -62,4 +77,4 @@ target_include_directories(grid_world_example PRIVATE include)
 target_link_libraries(grid_world_example grid_world)
 
 add_executable(dq_learning src/dq_learning.cpp)
-target_link_libraries(dq_learning ${TORCH_LIBRARIES} grid_world)
+target_link_libraries(dq_learning ${TORCH_LIBRARIES} grid_world spdlog::spdlog)
