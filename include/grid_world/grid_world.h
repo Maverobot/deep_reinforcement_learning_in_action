@@ -12,7 +12,7 @@ class GridWorld {
   enum class Action { up, down, left, right };
   using Reward = float;
 
-  GridWorld(InitMode init_mode = InitMode::player_random, size_t size = 4) : board_(size) {
+  GridWorld(InitMode init_mode = InitMode::shuffle, size_t size = 4) : board_(size) {
     ValidBoardCreator creator(board_.size());
     switch (init_mode) {
       case InitMode::fixed:

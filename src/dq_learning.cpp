@@ -48,10 +48,88 @@ torch::Tensor flat_tensor(std::vector<std::vector<value_type>> input,
   return torch::cat(output_vec, 1);
 }
 
-constexpr int kMaxSteps = 100;
+std::string toString(const torch::Tensor& tensor) {
+  std::ostringstream oss;
+  oss << tensor;
+  // TODO: optionally remove last line of type information
+  return oss.str();
+}
+
+template <typename Game>
+struct Snapshot {
+  torch::Tensor old_state;
+  typename Game::Action action;
+  typename Game::Reward reward;
+  torch::Tensor new_state;
+  bool over;
+};
+
+template <typename Game>
+class ExperienceReplay {
+ public:
+  explicit ExperienceReplay(size_t buffer_size, size_t batch_size, float gamma)
+      : buffer_size_(buffer_size), batch_size_(batch_size), gamma_(gamma) {}
+  void addSnapshot(Snapshot<Game> snapshot) {
+    snapshots_.push_back(snapshot);
+    if (snapshots_.size() > buffer_size_) {
+      snapshots_.erase(snapshots_.begin());
+    }
+    spdlog::debug("current replay size: {}", snapshots_.size());
+  }
+
+  void randomBatchBackward(torch::nn::Sequential& model) {
+    if (snapshots_.size() < buffer_size_) {
+      return;
+    }
+    spdlog::debug("batch size: {}", batch_size_);
+
+    std::vector<Snapshot<Game>> minibatch;
+    std::sample(snapshots_.cbegin(), snapshots_.cend(), std::back_inserter(minibatch), batch_size_,
+                std::mt19937{std::random_device{}()});
+
+    torch::Tensor q_values_batch =
+        torch::empty({batch_size_, magic_enum::enum_count<typename Game::Action>()});
+    torch::Tensor q_values_target_batch =
+        torch::empty({batch_size_, magic_enum::enum_count<typename Game::Action>()});
+
+    size_t memory_idx = 0;
+    for (const Snapshot<Game>& memory : minibatch) {
+      torch::Tensor old_q_val = model->forward(memory.old_state);
+      torch::Tensor new_q_val = model->forward(memory.new_state);
+      float new_q_val_max = new_q_val.max().template item<float>();
+
+      float update;
+      if (memory.over) {
+        update = memory.reward;
+      } else {
+        update = memory.reward + gamma_ * new_q_val_max;
+      }
+      auto old_q_val_target = old_q_val.clone();
+      old_q_val_target[0][static_cast<int>(memory.action)] = update;
+      q_values_batch[memory_idx] = old_q_val.squeeze();
+      q_values_target_batch[memory_idx] = old_q_val_target.squeeze();
+      memory_idx++;
+    }
+    spdlog::debug("q_values_batch = {}", toString(q_values_batch));
+    spdlog::debug("q_values_target_batch = {}", toString(q_values_target_batch));
+    auto loss = torch::mse_loss(q_values_batch, q_values_target_batch.detach());
+    spdlog::debug("loss = {}", toString(loss));
+    loss.backward();
+  }
+
+ private:
+  size_t buffer_size_;
+  long batch_size_;
+  float gamma_;
+  std::vector<Snapshot<Game>> snapshots_;
+};
+
+constexpr int kMaxSteps = 50;
 constexpr float kLearningRate = 0.001f;
 constexpr float kGamma = 0.9f;
-constexpr int kEpochs = 100;
+constexpr int kEpochs = 3000;
+constexpr int kReplayBufferSize = 500;
+constexpr int kBatchSize = 100;
 const std::string kModelFile = "dql_model.pt";
 
 void test_model(torch::nn::Sequential& model) {
@@ -70,13 +148,6 @@ void test_model(torch::nn::Sequential& model) {
     state = flat_tensor(new_state_raw);
   }
   spdlog::info("step used: {}, status: {}", step_count, game.win() ? "win" : "loss");
-}
-
-std::string toString(const torch::Tensor& tensor) {
-  std::ostringstream oss;
-  oss << tensor;
-  // TODO: optionally remove last line of type information
-  return oss.str();
 }
 
 int main(int argc, char* argv[]) {
@@ -107,6 +178,8 @@ int main(int argc, char* argv[]) {
   std::uniform_int_distribution<int> dist_int(0, magic_enum::enum_count<GridWorld::Action>() - 1);
   const auto action_rand = [&rd, &dist_int] { return dist_int(rd); };
 
+  ExperienceReplay<GridWorld> replay(kReplayBufferSize, kBatchSize, kGamma);
+
   float epsilon = 1.0f;
   for (size_t epoch_idx = 0; epoch_idx < kEpochs; epoch_idx++) {
     auto game = GridWorld();
@@ -128,22 +201,12 @@ int main(int argc, char* argv[]) {
       auto [reward, new_state_raw] = game.step(GridWorld::Action(action));
       auto new_state = flat_tensor(new_state_raw);
 
-      // Set target Q value
-      torch::Tensor q_values_target = q_values.clone();
-      float update;
-      if (!game.over()) {
-        update = reward + (kGamma * model->forward(new_state).max().item<float>());
-      } else {
-        update = reward;
-      }
-      q_values_target[0][action] = update;
-
-      // Loss function
-      auto loss = torch::mse_loss(q_values, q_values_target.detach());
-
-      // Step
       optimizer.zero_grad();
-      loss.backward();
+
+      // Experience replay
+      replay.addSnapshot({state, GridWorld::Action(action), reward, new_state, game.over()});
+      replay.randomBatchBackward(model);
+
       optimizer.step();
 
       // Update current state

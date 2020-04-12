@@ -86,7 +86,6 @@ def train_model(model, epochs=10, mode='static'):
     replay_buffer = 500
     batch_size = 100
 
-    step_idx = 0
     for epoch_idx in range(epochs):
         game = Gridworld(size=4, mode=mode)
         s_ = game.board.render_np().reshape(1, 64)
@@ -95,6 +94,7 @@ def train_model(model, epochs=10, mode='static'):
         move_count = 0
         game_over = False
         total_reward = 0
+        step_idx = 0
         while not game_over:
             move_count += 1
 
@@ -150,9 +150,8 @@ def train_model(model, epochs=10, mode='static'):
                 loss = loss_fn(X_train, y_train)
 
                 # Visualize loss trend
-                plt.scatter(step_idx, np.log10(loss.item()))
-                plt.pause(0.01)
-                step_idx += 1
+                # plt.scatter(step_idx, np.log10(loss.item()))
+                # plt.pause(0.01)
                 # print("Epoch {}: {}".format(epoch_idx, loss))
 
                 # Clear gradients of all optimized tensors
@@ -163,13 +162,14 @@ def train_model(model, epochs=10, mode='static'):
 
                 # Perform a single optimization step (parameter update)
                 optimizer.step()
-
-                state = new_state
+            step_idx += 1
+            state = new_state
             if reward != -1 or move_count > max_moves:
                 game_over = True
         if epsilon > 0.1:
             epsilon -= 1.0 / epochs
-        print("Epoch {} total reward: {}".format(epoch_idx, total_reward))
+        print("Epoch {} total reward: {}, status: {}".format(
+            epoch_idx, total_reward, "win" if reward == 10 else "loss"))
     return model
 
 
@@ -184,7 +184,7 @@ def main():
         test_model(model, mode='random')
     except FileNotFoundError:
         model = get_model()
-        model = train_model(model, epochs=3000, mode='random')
+        model = train_model(model, epochs=300, mode='random')
         torch.save(model, model_path)
         plt.show(block=True)
 

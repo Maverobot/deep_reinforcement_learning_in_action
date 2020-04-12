@@ -70,6 +70,13 @@ else()
 endif()
 
 ####################################
+##             models             ##
+####################################
+add_library(models INTERFACE)
+target_include_directories(models INTERFACE include/models)
+target_link_libraries(models INTERFACE ${TORCH_LIBRARIES})
+
+####################################
 ##             examples           ##
 ####################################
 add_executable(grid_world_example src/grid_world_example.cpp)
@@ -77,4 +84,4 @@ target_include_directories(grid_world_example PRIVATE include)
 target_link_libraries(grid_world_example grid_world)
 
 add_executable(dq_learning src/dq_learning.cpp)
-target_link_libraries(dq_learning ${TORCH_LIBRARIES} grid_world spdlog::spdlog)
+target_link_libraries(dq_learning ${TORCH_LIBRARIES} grid_world models spdlog::spdlog)
