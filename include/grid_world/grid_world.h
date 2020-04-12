@@ -8,11 +8,12 @@
 namespace drl_in_action::grid_world {
 class GridWorld {
  public:
-  enum class InitMode { fixed, player };
+  enum class InitMode { fixed, player_random, shuffle };
   enum class Action { up, down, left, right };
   using Reward = float;
 
-  GridWorld(size_t size = 4, InitMode init_mode = InitMode::player) : board_(size) {
+  GridWorld(InitMode init_mode = InitMode::player_random, size_t size = 4) : board_(size) {
+    ValidBoardCreator creator(board_.size());
     switch (init_mode) {
       case InitMode::fixed:
         board_.addPiece("Player", 'P', 0, 3);
@@ -20,12 +21,20 @@ class GridWorld {
         board_.addPiece("Wall", 'W', 1, 1);
         board_.addPiece("Pit", '-', 0, 1);
         break;
-      case InitMode::player:
-        ValidBoardCreator creator(board_.size());
+      case InitMode::player_random:
         creator.addPiece({"Goal", '+', 0, 0});
         creator.addPiece({"Wall", 'W', 1, 1});
         creator.addPiece({"Pit", '-', 0, 1});
         creator.addRandomPiece("Player", 'P');
+        for (const auto& piece : creator.pieces()) {
+          board_.addPiece(piece);
+        }
+        break;
+      case InitMode::shuffle:
+        creator.addRandomPiece("Goal", '+');
+        creator.addRandomPiece("Player", 'P');
+        creator.addRandomPiece("Wall", 'W');
+        creator.addRandomPiece("Pit", '-');
         for (const auto& piece : creator.pieces()) {
           board_.addPiece(piece);
         }

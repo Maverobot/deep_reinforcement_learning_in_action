@@ -48,7 +48,7 @@ torch::Tensor flat_tensor(std::vector<std::vector<value_type>> input,
   return torch::cat(output_vec, 1);
 }
 
-constexpr int kMaxSteps = 10;
+constexpr int kMaxSteps = 100;
 constexpr float kLearningRate = 0.001f;
 constexpr float kGamma = 0.9f;
 constexpr int kEpochs = 100;
@@ -80,6 +80,7 @@ std::string toString(const torch::Tensor& tensor) {
 }
 
 int main(int argc, char* argv[]) {
+  // TODO: train or test model via command line args
   spdlog::set_level(spdlog::level::info);
 
   auto model = create_model(torch::kCUDA);
@@ -108,11 +109,12 @@ int main(int argc, char* argv[]) {
 
   float epsilon = 1.0f;
   for (size_t epoch_idx = 0; epoch_idx < kEpochs; epoch_idx++) {
-    auto game = drl_in_action::grid_world::GridWorld();
+    auto game = GridWorld();
     int step_count = 0;
     int total_reward = 0;
     auto state = flat_tensor(game.state());
-    while (!game.over()) {
+    // Stop if the maximum steps are reached in case the game is not solvable.
+    while (step_count < kMaxSteps && !game.over()) {
       // Get Q values for the current state
       auto q_values = model->forward(state);
 
