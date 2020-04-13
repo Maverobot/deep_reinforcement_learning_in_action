@@ -180,12 +180,17 @@ int main(int argc, char* argv[]) {
 
   ExperienceReplay<GridWorld> replay(kReplayBufferSize, kBatchSize, kGamma);
 
+  const auto noisify_tensor = [](torch::Tensor& tensor) {
+    tensor += torch::rand(tensor.sizes(), tensor.options()) / 100;
+  };
+
   float epsilon = 1.0f;
   for (size_t epoch_idx = 0; epoch_idx < kEpochs; epoch_idx++) {
     auto game = GridWorld();
     int step_count = 0;
     int total_reward = 0;
     auto state = flat_tensor(game.state());
+    noisify_tensor(state);
     // Stop if the maximum steps are reached in case the game is not solvable.
     while (step_count < kMaxSteps && !game.over()) {
       // Get Q values for the current state
@@ -200,6 +205,7 @@ int main(int argc, char* argv[]) {
       }
       auto [reward, new_state_raw] = game.step(GridWorld::Action(action));
       auto new_state = flat_tensor(new_state_raw);
+      noisify_tensor(new_state);
 
       optimizer.zero_grad();
 
