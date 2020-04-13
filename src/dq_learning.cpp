@@ -48,6 +48,26 @@ torch::Tensor flat_tensor(std::vector<std::vector<value_type>> input,
   return torch::cat(output_vec, 1);
 }
 
+void loadParameter(torch::nn::Sequential& model,
+                   const torch::OrderedDict<std::string, torch::Tensor>& new_params) {
+  torch::autograd::GradMode::set_enabled(false);  // make parameters copying possible
+  auto params = model->named_parameters(true /*recurse*/);
+  auto buffers = model->named_buffers(true /*recurse*/);
+  for (auto& val : new_params) {
+    auto name = val.key();
+    auto* t = params.find(name);
+    if (t != nullptr) {
+      t->copy_(val.value());
+    } else {
+      t = buffers.find(name);
+      if (t != nullptr) {
+        t->copy_(val.value());
+      }
+    }
+  }
+  torch::autograd::GradMode::set_enabled(true);
+}
+
 std::string toString(const torch::Tensor& tensor) {
   std::ostringstream oss;
   oss << tensor;
@@ -77,7 +97,7 @@ class ExperienceReplay {
     spdlog::debug("current replay size: {}", snapshots_.size());
   }
 
-  void randomBatchBackward(torch::nn::Sequential& model) {
+  void randomBatchBackward(torch::nn::Sequential& model, torch::nn::Sequential& target_model) {
     if (snapshots_.size() < buffer_size_) {
       return;
     }
@@ -95,7 +115,7 @@ class ExperienceReplay {
     size_t memory_idx = 0;
     for (const Snapshot<Game>& memory : minibatch) {
       torch::Tensor old_q_val = model->forward(memory.old_state);
-      torch::Tensor new_q_val = model->forward(memory.new_state);
+      torch::Tensor new_q_val = target_model->forward(memory.new_state);
       float new_q_val_max = new_q_val.max().template item<float>();
 
       float update;
@@ -127,9 +147,10 @@ class ExperienceReplay {
 constexpr int kMaxSteps = 50;
 constexpr float kLearningRate = 0.001f;
 constexpr float kGamma = 0.9f;
-constexpr int kEpochs = 3000;
-constexpr int kReplayBufferSize = 500;
-constexpr int kBatchSize = 100;
+constexpr int kEpochs = 5000;
+constexpr int kReplayBufferSize = 1000;
+constexpr int kBatchSize = 200;
+constexpr int kSyncDelay = 500;
 const std::string kModelFile = "dql_model.pt";
 
 void test_model(torch::nn::Sequential& model) {
@@ -155,6 +176,8 @@ int main(int argc, char* argv[]) {
   spdlog::set_level(spdlog::level::info);
 
   auto model = create_model(torch::kCUDA);
+  auto target_model = create_model(torch::kCUDA);
+  loadParameter(target_model, model->named_parameters());
   auto optimizer = torch::optim::Adam(model->parameters(), kLearningRate);
 
   bool model_loaded = true;
@@ -185,6 +208,7 @@ int main(int argc, char* argv[]) {
   };
 
   float epsilon = 1.0f;
+  int sync_count = 0;
   for (size_t epoch_idx = 0; epoch_idx < kEpochs; epoch_idx++) {
     auto game = GridWorld();
     int step_count = 0;
@@ -211,15 +235,21 @@ int main(int argc, char* argv[]) {
 
       // Experience replay
       replay.addSnapshot({state, GridWorld::Action(action), reward, new_state, game.over()});
-      replay.randomBatchBackward(model);
+      replay.randomBatchBackward(model, target_model);
 
       optimizer.step();
 
       // Update current state
       state = new_state;
 
+      // Update the target model
+      if (sync_count % kSyncDelay == 0) {
+        loadParameter(target_model, model->named_parameters());
+      }
+
       total_reward += reward;
       step_count++;
+      sync_count++;
     }
 
     // TODO: epsilon should depend on the winrate
