@@ -4,15 +4,11 @@ project(drl_in_action)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-####################################
-##             utils              ##
-####################################
+# utils
 add_library(utils INTERFACE)
 target_include_directories(utils INTERFACE include/utils)
 
-####################################
-##             spdlog             ##
-####################################
+# spdlog
 include(FetchContent)
 find_package(spdlog QUIET CONFIG)
 if(NOT spdlog_FOUND)
@@ -27,9 +23,7 @@ if(NOT spdlog_FOUND)
   endif()
 endif()
 
-####################################
-##             grid_world         ##
-####################################
+# grid_world
 FetchContent_Declare(
   libfort
   GIT_REPOSITORY https://github.com/seleznevae/libfort.git
@@ -40,14 +34,11 @@ if(NOT libfort_POPULATED)
 endif()
 add_library(fort ${libfort_SOURCE_DIR}/lib/fort.c)
 target_include_directories(fort PUBLIC ${libfort_SOURCE_DIR}/lib)
-
 add_library(grid_world INTERFACE)
 target_include_directories(grid_world INTERFACE include/grid_world)
 target_link_libraries(grid_world INTERFACE fort utils)
 
-####################################
-##             torch             ##
-####################################
+# torch
 set(libtorch_VERSION 1.4.0)
 find_package(Torch ${libtorch_VERSION} EXACT QUIET CONFIG)
 if(NOT Torch_FOUND)
@@ -69,16 +60,12 @@ else()
   message(STATUS "libtorch ${libtorch_VERSION} - found")
 endif()
 
-####################################
-##             models             ##
-####################################
+# models
 add_library(models INTERFACE)
 target_include_directories(models INTERFACE include/models)
 target_link_libraries(models INTERFACE ${TORCH_LIBRARIES})
 
-####################################
-##             examples           ##
-####################################
+# examples
 add_executable(grid_world_example src/grid_world_example.cpp)
 target_include_directories(grid_world_example PRIVATE include)
 target_link_libraries(grid_world_example grid_world)
