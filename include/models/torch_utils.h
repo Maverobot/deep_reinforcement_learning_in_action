@@ -21,8 +21,8 @@ torch::Tensor flat_tensor(std::vector<std::vector<value_type>> input,
   return torch::cat(output_vec, 1);
 }
 
-void loadParameter(torch::nn::Sequential& model,
-                   const torch::OrderedDict<std::string, torch::Tensor>& new_params) {
+template <typename Model>
+void loadParameter(Model& model, const torch::OrderedDict<std::string, torch::Tensor>& new_params) {
   torch::autograd::GradMode::set_enabled(false);  // make parameters copying possible
   auto params = model->named_parameters(true /*recurse*/);
   auto buffers = model->named_buffers(true /*recurse*/);

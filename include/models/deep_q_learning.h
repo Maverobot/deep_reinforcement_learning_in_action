@@ -24,19 +24,33 @@ struct TORCH_API TrainOptions {
   TORCH_ARG(std::size_t, replay_sync_delay) = 500;
 };
 
-torch::nn::Sequential create_model(torch::Device device) {
-  const int kL1 = 64;
+// Deep Q learning with fully connected layers
+struct FullyConnectedImpl : torch::nn::Module {
+  FullyConnectedImpl(int64_t input_dim, int64_t output_dim) {
+    linear1 = register_module(
+        "linear1", torch::nn::Linear(torch::nn::LinearOptions(input_dim, kL2).bias(true)));
+    elu1 = register_module("elu1", torch::nn::ELU(torch::nn::ELUOptions().alpha(1).inplace(false)));
+    linear2 = register_module("linear2",
+                              torch::nn::Linear(torch::nn::LinearOptions(kL2, kL3).bias(true)));
+    elu2 = register_module("elu2", torch::nn::ELU(torch::nn::ELUOptions().alpha(1).inplace(false)));
+    linear3 = register_module(
+        "linear3", torch::nn::Linear(torch::nn::LinearOptions(kL3, output_dim).bias(true)));
+  }
+
+  torch::Tensor forward(torch::Tensor x) {
+    x = elu1(linear1(x));
+    x = elu2(linear2(x));
+    x = linear3(x);
+    return x;
+  }
+
+  torch::nn::Linear linear1{nullptr}, linear2{nullptr}, linear3{nullptr};
+  torch::nn::ELU elu1{nullptr}, elu2{nullptr};
+
   const int kL2 = 150;
   const int kL3 = 100;
-  const int kL4 = 4;
-  torch::nn::Sequential model(torch::nn::Linear(torch::nn::LinearOptions(kL1, kL2).bias(true)),
-                              torch::nn::ELU(torch::nn::ELUOptions().alpha(1).inplace(false)),
-                              torch::nn::Linear(torch::nn::LinearOptions(kL2, kL3).bias(true)),
-                              torch::nn::ELU(torch::nn::ELUOptions().alpha(1).inplace(false)),
-                              torch::nn::Linear(torch::nn::LinearOptions(kL3, kL4).bias(true)));
-  model->to(device);
-  return model;
-}
+};
+TORCH_MODULE(FullyConnected);
 
 template <typename Game>
 struct Snapshot {
@@ -60,7 +74,8 @@ class ExperienceReplay {
     spdlog::debug("current replay size: {}", snapshots_.size());
   }
 
-  void randomBatchBackward(torch::nn::Sequential& model, torch::nn::Sequential& target_model) {
+  template <typename Model>
+  void randomBatchBackward(Model& model, Model& target_model) {
     if (snapshots_.size() < buffer_size_) {
       return;
     }
@@ -107,8 +122,8 @@ class ExperienceReplay {
   std::vector<Snapshot<Game>> snapshots_;
 };
 
-template <typename Game>
-void test_model(torch::nn::Sequential& model, std::size_t max_steps = 50) {
+template <typename Game, typename Model>
+void testModel(Model& model, std::size_t max_steps = 50) {
   auto game = Game();
   std::size_t step_count = 0;
   auto state = torch_utils::flat_tensor(game.state());
@@ -126,9 +141,9 @@ void test_model(torch::nn::Sequential& model, std::size_t max_steps = 50) {
   spdlog::info("step used: {}, status: {}", step_count, game.win() ? "win" : "loss");
 }
 
-template <typename Game>
-void train_model(torch::nn::Sequential& model, const TrainOptions& options) {
-  auto target_model = deep_q_learning::create_model(torch::kCUDA);
+template <typename Game, typename Model>
+void trainModel(Model& model, const TrainOptions& options) {
+  Model target_model = Model(model);
   torch_utils::loadParameter(target_model, model->named_parameters());
   auto optimizer = torch::optim::Adam(model->parameters(), options.learning_rate());
 
