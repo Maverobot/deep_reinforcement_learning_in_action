@@ -24,6 +24,44 @@ struct TORCH_API TrainOptions {
   TORCH_ARG(std::size_t, replay_sync_delay) = 500;
 };
 
+// Deep Q learning with CNN layers
+struct DeepQCNNImpl : torch::nn::Module {
+  DeepQCNNImpl(int64_t input_dim, int64_t output_dim, int64_t board_size) : board_size(board_size) {
+    conv1 = register_module(
+        "conv1",
+        torch::nn::Conv2d(torch::nn::Conv2dOptions(input_dim, 10, kernel_size).padding(1)));
+    conv2 = register_module(
+        "conv2", torch::nn::Conv2d(torch::nn::Conv2dOptions(10, 20, kernel_size).padding(1)));
+    register_module("conv2_drop", conv2_drop);
+    fc1 = register_module(
+        "fc1",
+        torch::nn::Linear(
+            torch::nn::LinearOptions(board_size * board_size * 20, fc1_output_dim).bias(true)));
+    fc2 = register_module(
+        "fc2", torch::nn::Linear(torch::nn::LinearOptions(fc1_output_dim, output_dim).bias(true)));
+  }
+
+  torch::Tensor forward(torch::Tensor x) {
+    x = x.view({1, board_state_size, board_size, board_size});
+    x = torch::elu(conv1->forward(x));
+    x = torch::elu(conv2_drop->forward(conv2->forward(x)));
+    x = x.view({-1, board_size * board_size * 20});
+    x = torch::elu(fc1->forward(x));
+    x = fc2->forward(x);
+    return x;
+  }
+
+  torch::nn::Conv2d conv1{nullptr}, conv2{nullptr};
+  torch::nn::Linear fc1{nullptr}, fc2{nullptr};
+  torch::nn::Dropout2d conv2_drop;
+
+  int64_t board_size;
+  const int board_state_size = 4;  // player, wall, goal, pit
+  const int fc1_output_dim = 50;
+  const int kernel_size = 3;
+};
+TORCH_MODULE(DeepQCNN);
+
 // Deep Q learning with fully connected layers
 struct FullyConnectedImpl : torch::nn::Module {
   FullyConnectedImpl(int64_t input_dim, int64_t output_dim) {

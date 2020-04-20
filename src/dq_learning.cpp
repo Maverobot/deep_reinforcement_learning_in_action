@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
   // TODO: train or test model via command line args
   spdlog::set_level(spdlog::level::info);
 
-  auto model = deep_q_learning::FullyConnected(64, 4);
+  auto model = deep_q_learning::DeepQCNN(4, 4, 4);
   model->to(torch::kCUDA);
 
   bool model_loaded = true;
@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  deep_q_learning::trainModel<GridWorld>(model, deep_q_learning::TrainOptions().epochs(500));
+  deep_q_learning::trainModel<GridWorld>(model, deep_q_learning::TrainOptions().epochs(5000));
   torch::save(model, kModelFile);
   return 0;
 }
