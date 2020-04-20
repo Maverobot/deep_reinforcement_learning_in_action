@@ -162,6 +162,7 @@ class ExperienceReplay {
 
 template <typename Game, typename Model>
 void testModel(Model& model, std::size_t max_steps = 50) {
+  model->eval();
   auto game = Game();
   std::size_t step_count = 0;
   auto state = torch_utils::flat_tensor(game.state());
