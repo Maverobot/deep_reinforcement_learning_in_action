@@ -60,15 +60,23 @@ else()
   message(STATUS "libtorch ${libtorch_VERSION} - found")
 endif()
 
+# gym
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(jsoncpp REQUIRED jsoncpp)
+add_library(gym src/gym_binding.cpp)
+target_include_directories(gym PUBLIC include/gym)
+target_include_directories(gym PUBLIC SYSTEM ${jsoncpp_INCLUDE_DIRS})
+target_link_libraries(gym PUBLIC ${jsoncpp_LIBRARIES})
+
 # models
 add_library(models INTERFACE)
 target_include_directories(models INTERFACE include/models)
 target_link_libraries(models INTERFACE ${TORCH_LIBRARIES})
 
 # examples
-add_executable(grid_world_example src/grid_world_example.cpp)
-target_include_directories(grid_world_example PRIVATE include)
-target_link_libraries(grid_world_example grid_world)
-
-add_executable(dq_learning src/dq_learning.cpp)
+add_executable(dq_learning examples/dq_learning.cpp)
 target_link_libraries(dq_learning ${TORCH_LIBRARIES} grid_world models spdlog::spdlog)
+
+# examples
+add_executable(policy_gradient examples/policy_gradient.cpp)
+target_link_libraries(policy_gradient PRIVATE gym curl)
