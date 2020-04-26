@@ -15,6 +15,7 @@
 namespace deep_q_learning {
 
 struct TORCH_API TrainOptions {
+  TORCH_ARG(torch::Device, device) = torch::kCPU;
   TORCH_ARG(std::size_t, max_steps) = 50;
   TORCH_ARG(float_t, learning_rate) = 0.001f;
   TORCH_ARG(float_t, gamma) = 0.9f;
@@ -161,11 +162,11 @@ class ExperienceReplay {
 };
 
 template <typename Game, typename Model>
-void testModel(Model& model, std::size_t max_steps = 50) {
+void testModel(Model& model, std::size_t max_steps = 50, torch::Device device = torch::kCPU) {
   model->eval();
   auto game = Game();
   std::size_t step_count = 0;
-  auto state = torch_utils::flat_tensor(game.state());
+  auto state = torch_utils::flatTensor(game.state(), device);
   while (step_count++ < max_steps && !game.over()) {
     game.display();
     std::cout << "Press any key to move with trained model...\n";
@@ -175,7 +176,7 @@ void testModel(Model& model, std::size_t max_steps = 50) {
     auto q_values = model->forward(state);
     int action = q_values.argmax().template item<int>();
     auto [reward, new_state_raw] = game.step(typename Game::Action(action), true);
-    state = torch_utils::flat_tensor(new_state_raw);
+    state = torch_utils::flatTensor(new_state_raw, device);
   }
   spdlog::info("step used: {}, status: {}", step_count, game.win() ? "win" : "loss");
 }
@@ -207,7 +208,7 @@ void trainModel(Model& model, const TrainOptions& options) {
     auto game = Game();
     std::size_t step_count = 0;
     int total_reward = 0;
-    auto state = torch_utils::flat_tensor(game.state());
+    auto state = torch_utils::flatTensor(game.state(), options.device());
     noisify_tensor(state);
     // Stop if the maximum steps are reached in case the game is not solvable.
     while (step_count < options.max_steps() && !game.over()) {
@@ -222,7 +223,7 @@ void trainModel(Model& model, const TrainOptions& options) {
         action = q_values.argmax().template item<int>();
       }
       auto [reward, new_state_raw] = game.step(typename Game::Action(action));
-      auto new_state = torch_utils::flat_tensor(new_state_raw);
+      auto new_state = torch_utils::flatTensor(new_state_raw, options.device());
       noisify_tensor(new_state);
 
       optimizer.zero_grad();
