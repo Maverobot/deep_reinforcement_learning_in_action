@@ -9,8 +9,17 @@
 namespace torch_utils {
 
 template <typename value_type>
-torch::Tensor flat_tensor(std::vector<std::vector<value_type>> input,
-                          torch::Device device = torch::kCUDA) {
+torch::Tensor toTensor(std::vector<value_type> input, torch::Device device = torch::kCPU) {
+  std::vector<torch::Tensor> output_vec;
+  return torch::from_blob(input.data(), {1, static_cast<long>(input.size())},
+                          torch::TensorOptions().dtype<value_type>())
+      .clone()
+      .to(device);
+}
+
+template <typename value_type>
+torch::Tensor flatTensor(std::vector<std::vector<value_type>> input,
+                         torch::Device device = torch::kCPU) {
   std::vector<torch::Tensor> output_vec;
   std::transform(input.begin(), input.end(), std::back_inserter(output_vec), [&device](auto& arr) {
     return torch::from_blob(arr.data(), {1, static_cast<long>(arr.size())},

@@ -5,8 +5,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # utils
+set(Python_ADDITIONAL_VERSIONS 3.6)
+find_package(PythonLibs 3 REQUIRED)
 add_library(utils INTERFACE)
-target_include_directories(utils INTERFACE include/utils)
+target_include_directories(utils INTERFACE include/utils ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(utils INTERFACE ${PYTHON_LIBRARIES})
 
 # spdlog
 include(FetchContent)
@@ -75,8 +78,9 @@ target_link_libraries(models INTERFACE ${TORCH_LIBRARIES})
 
 # examples
 add_executable(dq_learning examples/dq_learning.cpp)
-target_link_libraries(dq_learning ${TORCH_LIBRARIES} grid_world models spdlog::spdlog)
+target_link_libraries(dq_learning PRIVATE ${TORCH_LIBRARIES} grid_world models spdlog::spdlog)
 
 # examples
 add_executable(policy_gradient examples/policy_gradient.cpp)
-target_link_libraries(policy_gradient PRIVATE gym curl)
+target_link_libraries(policy_gradient PRIVATE ${TORCH_LIBRARIES} models utils gym curl
+                                              spdlog::spdlog)
