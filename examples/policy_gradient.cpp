@@ -89,12 +89,12 @@ inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
   // Plot
   std::vector<double> total_steps_vec;
   const int kMovingAverageWindowSize = 50;
+
   bool render = false;
 
   for (int episode_idx = 0; episode_idx < episodes_to_run; ++episode_idx) {
     Gym::State s;
     env->reset(&s);
-    float total_reward = 0;
     int total_steps = 0;
 
     if (episode_idx > episodes_to_run * 0.8) {
@@ -115,7 +115,6 @@ inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
 
       env->step(action, render, &s);
 
-      total_reward += s.reward;
       total_steps += 1;
       if (s.done) {
         break;
@@ -138,9 +137,8 @@ inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
     loss.backward();
     optimizer.step();
 
-    spdlog::info(
-        "{} episode {:5d}/{:5d} finished in {:3d} steps with reward {:2.2f} (loss: {:3.2f})",
-        env_id, episode_idx, episodes_to_run, total_steps, total_reward, loss.item<float>());
+    spdlog::info("{} episode {:5d}/{:5d} finished in {:3d} steps", env_id, episode_idx,
+                 episodes_to_run, total_steps);
 
     total_steps_vec.push_back(total_steps);
 
