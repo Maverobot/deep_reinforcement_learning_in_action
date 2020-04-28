@@ -56,10 +56,15 @@ std::vector<float> pickAction(torch::Tensor pred) {
   throw std::runtime_error("The sum of the pred is not 1");
 }
 
-// rewards is ordered to start from past and end with current
+// rewards is ordered to start from step 0 and end with last step
 inline std::vector<float> discountRewards(std::vector<float> rewards, float gamma = 0.99) {
-  std::for_each(rewards.begin(), rewards.end(),
-                [i = 0, gamma](float& r) mutable { r = std::pow(gamma, i++) * r; });
+  std::partial_sum(
+      rewards.rbegin(), rewards.rend(), rewards.rbegin(),
+      [i = 1, gamma](auto& v1, auto& v2) mutable { return v1 + std::pow(gamma, i++) * v2; });
+
+  // TODO: this normalization seems to have negative effect on the performance
+  float r_max = *std::max_element(rewards.cbegin(), rewards.cend());
+  std::for_each(rewards.begin(), rewards.end(), [r_max](auto& r) { r = r / r_max; });
   return rewards;
 }
 
@@ -127,8 +132,6 @@ inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
     }
     int64_t episode_len = observations.size();
     auto preds = torch::zeros(episode_len);
-    std::partial_sum(rewards.begin(), rewards.end(), rewards.begin());
-    std::reverse(rewards.begin(), rewards.end());
     auto d_rewards = discountRewards(rewards, kGamma);
     for (int64_t idx = 0; idx < episode_len; idx++) {
       auto obs = observations.at(idx);
