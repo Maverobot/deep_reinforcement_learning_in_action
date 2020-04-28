@@ -166,7 +166,7 @@ inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
 int main(int argc, char** argv) {
   try {
     boost::shared_ptr<Gym::Client> client = Gym::client_create("127.0.0.1", 5000);
-    run_single_environment(client, "CartPole-v0", 500);
+    run_single_environment(client, "CartPole-v1", 1000);
 
   } catch (const std::exception& e) {
     spdlog::error("{}", e.what());
