@@ -63,12 +63,17 @@ inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
   boost::shared_ptr<Gym::Space> observation_space = env->observation_space();
 
   std::vector<double> total_steps_vec;
+  bool render = false;
 
   for (int episode_idx = 0; episode_idx < episodes_to_run; ++episode_idx) {
     Gym::State s;
     env->reset(&s);
     float total_reward = 0;
     int total_steps = 0;
+
+    if (episode_idx > episodes_to_run * 0.8) {
+      render = true;
+    }
 
     // Episode
     std::vector<Observation> observations;
@@ -82,7 +87,7 @@ inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
       actions.push_back(action);
       rewards.push_back(s.reward);
 
-      env->step(action, false, &s);
+      env->step(action, render, &s);
 
       total_reward += s.reward;
       total_steps += 1;
@@ -132,7 +137,7 @@ inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
 int main(int argc, char** argv) {
   try {
     boost::shared_ptr<Gym::Client> client = Gym::client_create("127.0.0.1", 5000);
-    run_single_environment(client, "CartPole-v0", 400);
+    run_single_environment(client, "CartPole-v0", 500);
 
   } catch (const std::exception& e) {
     spdlog::error("{}", e.what());
