@@ -97,8 +97,13 @@ inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
     env->reset(&s);
     int total_steps = 0;
 
-    if (episode_idx > episodes_to_run * 0.8) {
-      render = true;
+    if (episode_idx > episodes_to_run - 20) {
+      if (!render) {
+        render = true;
+        model->eval();
+        spdlog::info("Please press any key to test the trained model for 20 rounds");
+        std::cin.ignore();
+      }
     }
 
     // Episode
