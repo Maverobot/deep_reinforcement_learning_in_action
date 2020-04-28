@@ -15,6 +15,30 @@ std::ostream& operator<<(std::ostream& o, const std::vector<T>& vec) {
   return o;
 }
 
+template <typename T>
+std::vector<T> movingAverage(const std::vector<T>& input, size_t window_size) {
+  std::vector<T> output;
+  output.reserve(input.size());
+
+  constexpr auto getAvg = [](auto iterator_begin, auto iterator_end, auto iterator_current,
+                             size_t window_size) {
+    auto start = iterator_current - window_size;
+    if (start < iterator_begin) {
+      start = iterator_begin;
+    }
+    auto end = iterator_current + window_size;
+    if (end > iterator_end) {
+      end = iterator_end;
+    }
+    return std::accumulate(start, end, 0) / (end - start);
+  };
+
+  for (auto it = input.begin(); it != input.end(); it++) {
+    output.push_back(getAvg(input.begin(), input.end(), it, window_size));
+  }
+  return output;
+}
+
 std::vector<float> pickAction(torch::Tensor pred) {
   std::random_device rd;
   std::uniform_real_distribution<float> dist_real(0.0f, 1.0f);
@@ -62,7 +86,9 @@ inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
   boost::shared_ptr<Gym::Space> action_space = env->action_space();
   boost::shared_ptr<Gym::Space> observation_space = env->observation_space();
 
+  // Plot
   std::vector<double> total_steps_vec;
+  const int kMovingAverageWindowSize = 50;
   bool render = false;
 
   for (int episode_idx = 0; episode_idx < episodes_to_run; ++episode_idx) {
@@ -124,7 +150,7 @@ inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
 
       plt::clf();
 
-      plt::named_plot("total steps", x, total_steps_vec);
+      plt::named_plot("total steps", x, movingAverage(total_steps_vec, kMovingAverageWindowSize));
       plt::xlim(0, episodes_to_run);
       plt::legend();
 
