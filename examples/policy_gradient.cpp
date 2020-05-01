@@ -72,22 +72,36 @@ inline torch::Tensor lossFn(torch::Tensor preds, torch::Tensor rewards) {
   return -1 * torch::sum(rewards * torch::log(preds));
 }
 
-inline void train_single_environment(const boost::shared_ptr<Gym::Client>& client,
-                                     const std::string& env_id,
+template <typename Model>
+inline void test_single_environment(boost::shared_ptr<Gym::Environment> env, Model& model) {
+  spdlog::info("Please press any key to test the trained model");
+  std::cin.ignore();
+  model->eval();
+  Gym::State s;
+  env->reset(&s);
+  for (;;) {
+    auto pred = model->forward(torch_utils::toTensor(s.observation));
+    std::vector<float> action = pickAction(pred);
+    env->step(action, true, &s);
+    if (s.done) {
+      break;
+    }
+  }
+}
+
+template <typename Model>
+inline void train_single_environment(boost::shared_ptr<Gym::Environment> env,
+                                     Model& model,
                                      int episodes_to_run) {
   using Observation = std::vector<float>;
   using Action = std::vector<float>;
   using Reward = float;
 
-  // Model
-  auto model = torch::nn::Sequential(torch::nn::Linear(4, 150), torch::nn::ELU(),
-                                     torch::nn::Linear(150, 2), torch::nn::Softmax(/*dim=*/1));
   const float kLearningRate = 0.001;
   const float kGamma = 0.99;
   auto optimizer = torch::optim::Adam(model->parameters(), kLearningRate);
 
   // Environment
-  boost::shared_ptr<Gym::Environment> env = client->make(env_id);
   boost::shared_ptr<Gym::Space> action_space = env->action_space();
   boost::shared_ptr<Gym::Space> observation_space = env->observation_space();
 
@@ -95,21 +109,10 @@ inline void train_single_environment(const boost::shared_ptr<Gym::Client>& clien
   std::vector<double> total_steps_vec;
   const int kMovingAverageWindowSize = 50;
 
-  bool render = false;
-
   for (int episode_idx = 0; episode_idx < episodes_to_run; ++episode_idx) {
     Gym::State s;
     env->reset(&s);
     int total_steps = 0;
-
-    if (episode_idx > episodes_to_run - 20) {
-      if (!render) {
-        render = true;
-        model->eval();
-        spdlog::info("Please press any key to test the trained model for 20 rounds");
-        std::cin.ignore();
-      }
-    }
 
     // Episode
     std::vector<Observation> observations;
@@ -123,7 +126,7 @@ inline void train_single_environment(const boost::shared_ptr<Gym::Client>& clien
       actions.push_back(action);
       rewards.push_back(s.reward);
 
-      env->step(action, render, &s);
+      env->step(action, false, &s);
 
       total_steps += 1;
       if (s.done) {
@@ -145,8 +148,8 @@ inline void train_single_environment(const boost::shared_ptr<Gym::Client>& clien
     loss.backward();
     optimizer.step();
 
-    spdlog::info("{} episode {:5d}/{:5d} finished in {:3d} steps", env_id, episode_idx,
-                 episodes_to_run, total_steps);
+    spdlog::info("Episode {:4d}/{:4d} finished in {:3d} steps", episode_idx, episodes_to_run,
+                 total_steps);
 
     total_steps_vec.push_back(total_steps);
 
@@ -163,18 +166,37 @@ inline void train_single_environment(const boost::shared_ptr<Gym::Client>& clien
       plt::pause(0.001);
     }
   }
-  plt::show();
 }
 
-int main(int argc, char** argv) {
-  try {
-    boost::shared_ptr<Gym::Client> client = Gym::client_create("127.0.0.1", 5000);
-    train_single_environment(client, "CartPole-v1", 1000);
+const std::string kModelFile = "policy_gradient.pt";
 
-  } catch (const std::exception& e) {
-    spdlog::error("{}", e.what());
-    return 1;
+// Only works with discret actions
+int main(int argc, char** argv) {
+  boost::shared_ptr<Gym::Client> client = Gym::client_create("127.0.0.1", 5000);
+  boost::shared_ptr<Gym::Environment> env = client->make("CartPole-v1");
+
+  // Model
+  auto model = torch::nn::Sequential(
+      torch::nn::Linear(env->observation_space()->sample().size(), 150), torch::nn::ELU(),
+      torch::nn::Linear(150, env->action_space()->discreet_n), torch::nn::Softmax(/*dim=*/1));
+
+  bool model_loaded = true;
+  try {
+    torch::load(model, kModelFile);
+    spdlog::info("The model has been loaded from {}", kModelFile);
+  } catch (...) {
+    model_loaded = false;
+    spdlog::info("The model could not be loaded from {}", kModelFile);
   }
 
+  if (model_loaded) {
+    test_single_environment(env, model);
+    return 0;
+  }
+
+  train_single_environment(env, model, 1000);
+  torch::save(model, kModelFile);
+
+  plt::show();
   return 0;
 }
