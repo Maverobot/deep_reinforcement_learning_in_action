@@ -72,9 +72,9 @@ inline torch::Tensor lossFn(torch::Tensor preds, torch::Tensor rewards) {
   return -1 * torch::sum(rewards * torch::log(preds));
 }
 
-inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
-                                   const std::string& env_id,
-                                   int episodes_to_run) {
+inline void train_single_environment(const boost::shared_ptr<Gym::Client>& client,
+                                     const std::string& env_id,
+                                     int episodes_to_run) {
   using Observation = std::vector<float>;
   using Action = std::vector<float>;
   using Reward = float;
@@ -169,7 +169,7 @@ inline void run_single_environment(const boost::shared_ptr<Gym::Client>& client,
 int main(int argc, char** argv) {
   try {
     boost::shared_ptr<Gym::Client> client = Gym::client_create("127.0.0.1", 5000);
-    run_single_environment(client, "CartPole-v1", 1000);
+    train_single_environment(client, "CartPole-v1", 1000);
 
   } catch (const std::exception& e) {
     spdlog::error("{}", e.what());
