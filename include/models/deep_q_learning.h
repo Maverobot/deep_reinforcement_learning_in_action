@@ -171,7 +171,10 @@ void testModel(Model& model, std::size_t max_steps = 50, torch::Device device = 
     game.display();
     std::cout << "Press any key to move with trained model...\n";
     std::cin.ignore();
-    system("clear");
+    int code = system("clear");
+    if (code != 0) {
+      throw std::runtime_error("system call 'clear' failed.");
+    }
 
     auto q_values = model->forward(state);
     int action = q_values.argmax().template item<int>();
