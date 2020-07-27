@@ -14,3 +14,32 @@ Set ~gcc-9~ to be the default ~gcc~:
   sudo update-alternatives --config gcc
   # And make sure gcc-9 is the default
 #+END_SRC
+*** gym
+#+BEGIN_SRC sh
+  git clone https://github.com/openai/gym-http-api
+  cd gym-http-api
+  pip install -r requirements.txt
+#+END_SRC
+** Build
+#+BEGIN_SRC sh
+  git clone https://github.com/Maverobot/deep_reinforcement_learning_in_action.git
+  cd deep_reinforcement_learning_in_action
+  mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . -- -j4
+#+END_SRC
+** Examples
+*** Deep Q-learning for grid world
+#+BEGIN_SRC sh
+  cd deep_reinforcement_learning_in_action
+  ./dq_learning
+#+END_SRC
+*** Policy gradient for CartPole problem
+**** Start gym
+#+BEGIN_SRC sh
+  cd gym-http-api
+  python gym_http_server.py
+#+END_SRC
+**** Start policy gradient
+#+BEGIN_SRC
+  cd deep_reinforcement_learning_in_action
+  ./policy_gradient
+#+END_SRC
