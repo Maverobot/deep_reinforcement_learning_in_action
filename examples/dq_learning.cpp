@@ -17,7 +17,11 @@ int main(int argc, char* argv[]) {
   // TODO: train or test model via command line args
   spdlog::set_level(spdlog::level::info);
 
+  #ifdef USE_CUDA
   torch::Device device = torch::kCUDA;
+  #else
+  torch::Device device = torch::kCPU;
+  #endif
 
   auto model = deep_q_learning::DeepQCNN(4, 4, 4);
   model->to(device);

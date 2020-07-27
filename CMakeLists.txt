@@ -1,8 +1,10 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.12)
 project(drl_in_action)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+option(USE_CUDA "Flag indicating if CUDA version libtorch is used." OFF)
 
 # utils
 set(Python_ADDITIONAL_VERSIONS 3.6)
@@ -43,6 +45,16 @@ target_link_libraries(grid_world INTERFACE fort utils)
 
 # torch
 set(libtorch_VERSION 1.4.0)
+if(USE_CUDA)
+  set(libtorch_URL
+      https://download.pytorch.org/libtorch/cu101/libtorch-cxx11-abi-shared-with-deps-${libtorch_VERSION}.zip
+  )
+  add_compile_definitions(USE_CUDA)
+else()
+  set(libtorch_URL
+      https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-${libtorch_VERSION}%2Bcpu.zip
+  )
+endif()
 find_package(Torch ${libtorch_VERSION} EXACT QUIET CONFIG)
 if(NOT Torch_FOUND)
   message(STATUS "libtorch ${libtorch_VERSION} - not found")
@@ -50,7 +62,7 @@ if(NOT Torch_FOUND)
   include(FetchContent)
   FetchContent_Declare(
     libtorch
-    URL https://download.pytorch.org/libtorch/cu101/libtorch-cxx11-abi-shared-with-deps-${libtorch_VERSION}.zip
+    URL ${libtorch_URL}
     SOURCE_DIR libtorch)
   FetchContent_GetProperties(libtorch)
   if(NOT libtorch_POPULATED)
